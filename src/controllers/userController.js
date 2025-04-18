@@ -1,71 +1,41 @@
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
 
-// Criação de usuário com senha criptografada
-export async function criarUsuario(req, res) {
+const gerarToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: '2d'
+  });
+};
+
+export const cadastrarUsuario = async (req, res) => {
+  const { nome, email, senha } = req.body;
+
   try {
-    const { nome, email, senha } = req.body;
-
-    const usuarioExistente = await User.findOne({ email });
-    if (usuarioExistente) {
-      return res.status(400).json({ erro: 'Usuário já existe.' });
+    const existente = await User.findOne({ email });
+    if (existente) {
+      return res.status(400).json({ erro: 'Email já cadastrado.' });
     }
 
-    const senhaCriptografada = await bcrypt.hash(senha, 10);
-    const novoUsuario = new User({ nome, email, senha: senhaCriptografada });
-
-    await novoUsuario.save();
+    const novoUser = await User.create({ nome, email, senha });
 
     res.status(201).json({
       mensagem: 'Usuário criado com sucesso!',
       usuario: {
-        id: novoUsuario._id,
-        nome: novoUsuario.nome,
-        email: novoUsuario.email,
-        criadoEm: novoUsuario.criadoEm
+        id: novoUser._id,
+        nome: novoUser.nome,
+        email: novoUser.email,
+        criadoEm: novoUser.createdAt,
+        token: gerarToken(novoUser._id)
       }
     });
-  } catch (erro) {
-    res.status(500).json({ erro: 'Erro ao criar usuário.' });
+
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao cadastrar usuário.' });
   }
-}
+};
 
-// Login do usuário e geração de token JWT
-export async function loginUsuario(req, res) {
-  try {
-    const { email, senha } = req.body;
 
-    const usuario = await User.findOne({ email });
-    if (!usuario) {
-      return res.status(400).json({ erro: 'Usuário não encontrado.' });
-    }
-
-    const senhaValida = await bcrypt.compare(senha, usuario.senha);
-    if (!senhaValida) {
-      return res.status(401).json({ erro: 'Senha inválida.' });
-    }
-
-    const token = jwt.sign(
-      { id: usuario._id, email: usuario.email },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    res.json({
-      mensagem: 'Login realizado com sucesso!',
-      token
-    });
-  } catch (erro) {
-    res.status(500).json({ erro: 'Erro no login.' });
-  }
-}
-// Listar todos os usuários (rota protegida)
-export async function listarUsuarios(req, res) {
-  try {
-    const usuarios = await User.find().select('-senha'); // exclui senha
-    res.json(usuarios);
-  } catch (erro) {
-    res.status(500).json({ erro: 'Erro ao buscar usuários.' });
-  }
-}
+export const listarUsuarios = async (req, res) => {
+  const usuarios = await User.find().select('-senha');
+  res.json(usuarios);
+};
