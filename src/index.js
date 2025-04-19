@@ -1,66 +1,90 @@
-import dotenv from 'dotenv';
-dotenv.config();
-// Importações necessárias para o funcionamento do servidor
-// Importações dos pacotes
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-
+import dotenv from 'dotenv';
+import http from 'http';
+import { apiLimiter, loginLimiter } from './middleware/rateLimitMiddleware.js';
+import { inicializarSocketIO } from './services/websocketService.js';
+import connectToDatabase from './config/database.js';
 
 // Carregar variáveis do arquivo .env
 dotenv.config();
 
+// Importações das rotas
+import userRoutes from './routes/userRoutes.js';
+import terapeutaRoutes from './routes/terapeutaRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import sessaoRoutes from './routes/sessaoRoutes.js';
+import promocaoRoutes from './routes/promocaoRoutes.js';
+import blogRoutes from './routes/blogRoutes.js';
+import avaliacaoRoutes from './routes/avaliacaoRoutes.js';
+import notificacaoRoutes from './routes/notificacaoRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import pagamentoRoutes from './routes/pagamentoRoutes.js';
+import teamRoutes from './routes/teamRoutes.js';
+import promocoesRoutes from './routes/promocoesRoutes.js';
+
 // Criar o app Express
 const app = express();
+const server = http.createServer(app);
+
+// Inicializar Socket.IO
+inicializarSocketIO(server);
 
 // Definir a porta do servidor (padrão: 5000)
 const PORT = process.env.PORT || 5000;
 
 // Middlewares
-app.use(cors()); // Permite acesso do frontend
-app.use(express.json()); // Permite receber JSON nas requisições
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
+app.use(express.json());
+
+// Conexão com o banco de dados
+connectToDatabase();
+
+// Adicionar rate limiting global para API
+app.use('/api/', apiLimiter);
+
+// Registrar rotas
 app.use('/api/users', userRoutes);
-// Ativa rotas de usuário com prefixo /api/users
-
-import userRoutes from './routes/userRoutes.js';
-import terapeutaRoutes from './routes/terapeutaRoutes.js';
 app.use('/api/terapeutas', terapeutaRoutes);
-// Ativa rotas de terapeuta com prefixo /api/terapeutas
-// Importa as rotas de terapeuta
-// Importa as rotas de usuário e terapeuta
-
-
-
-app.use('/api', userRoutes); // Ativa rotas de usuário com prefixo /api
-
-
-// Conexão com o MongoDB Atlas
-mongoose.connect(process.env.MONGO_URI, {
-})
-.then(() => {
-  console.log("🚀 Conectado ao MongoDB Atlas com sucesso!");
-})
-.catch((err) => {
-  console.error("❌ Erro ao conectar ao MongoDB:", err.message);
-});
+app.use('/api/auth/login', loginLimiter); // Rate limit específico para login
+app.use('/api/auth', authRoutes);
+app.use('/api/sessoes', sessaoRoutes);
+app.use('/api/promocoes', promocaoRoutes);
+app.use('/api/blog', blogRoutes);
+app.use('/api/avaliacoes', avaliacaoRoutes);
+app.use('/api/notificacoes', notificacaoRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/pagamentos', pagamentoRoutes);
+app.use('/api/team', teamRoutes);
+app.use('/api/promocoes', promocoesRoutes);
 
 // Rota de teste
 app.get('/', (req, res) => {
   res.send('✅ API HOLLUS está rodando!');
 });
 
-// Iniciar o servidor
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+// Middleware de tratamento de erros
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Ocorreu um erro no servidor' });
 });
 
-import authRoutes from './routes/authRoutes.js';
+// Conexão com o MongoDB Atlas
+mongoose.connect(process.env.MONGO_URI, {})
+  .then(() => {
+    console.log("🚀 Conectado ao MongoDB Atlas com sucesso!");
+  })
+  .catch((err) => {
+    console.error("❌ Erro ao conectar com o MongoDB Atlas:", err);
+  });
 
-app.use('/api', authRoutes);
-// Ativa rotas de autenticação com prefixo /api
-// Importa as rotas de autenticação
+// Iniciar o servidor HTTP
+server.listen(PORT, () => {
+  console.log(`🌐 Servidor rodando na porta ${PORT}`);
+});
 
-import sessaoRoutes from './routes/sessaoRoutes.js';
-app.use('/api/sessoes', sessaoRoutes);
-// Ativa rotas de sessão com prefixo /api/sessoes
-// Importa as rotas de sessão
+export default app;

@@ -15,12 +15,28 @@ const sessaoSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
+  status: {
+    type: String,
+    enum: ['pendente', 'confirmado', 'cancelado'],
+    default: 'pendente'
+  },
   observacoes: {
     type: String
+  },
+  avaliado: {
+    type: Boolean,
+    default: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
-}, {
-  timestamps: true
 });
 
 const Sessao = mongoose.model('Sessao', sessaoSchema);
+
 export default Sessao;

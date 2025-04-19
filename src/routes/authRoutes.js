@@ -1,10 +1,11 @@
 import express from 'express';
-import { loginUsuario } from '../controllers/authController.js';
+import { loginUsuario, solicitarRecuperacaoSenha, redefinirSenha } from '../controllers/authController.js';
+import { validateLogin, validatePasswordReset } from '../middleware/validationMiddleware.js';
 
 const router = express.Router();
 
-router.post('/login', loginUsuario);
+router.post('/login', validateLogin, loginUsuario);
+router.post('/reset-password', validatePasswordReset, solicitarRecuperacaoSenha);
+router.post('/reset-password/confirm', validatePasswordReset, redefinirSenha);
 
 export default router;
-// Rota de login para autenticação de usuários
-// router.post('/login', loginUsuario);
